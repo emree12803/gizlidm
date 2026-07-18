@@ -16,7 +16,6 @@
     --amber-dim:#8a6a35;
     --rust:#c15f3c;
     --cream:#f1e7d6;
-    --cream-dim:#a8988038;
     --phosphor:#8fe3c0;
     --danger:#d1553f;
   }
@@ -38,7 +37,6 @@
   }
   h1,h2,h3,.disp{font-family:'Oswald', sans-serif; letter-spacing:0.08em; text-transform:uppercase;}
 
-  /* ---------- LOCK SCREEN ---------- */
   #lock{
     width:100%; max-width:400px;
     background:linear-gradient(180deg, var(--panel), var(--panel-2));
@@ -58,7 +56,7 @@
   @keyframes pulse{0%,100%{opacity:0.4;} 50%{opacity:1;}}
   .brand-label{font-size:11px; letter-spacing:0.22em; color:var(--amber-dim);}
   h1{font-size:26px; margin:6px 0 2px; color:var(--cream);}
-  .sub{font-size:12px; color:#9a897166; color:#a89880; margin-bottom:22px; line-height:1.5;}
+  .sub{font-size:12px; color:#a89880; margin-bottom:22px; line-height:1.5;}
 
   .field{margin-bottom:16px;}
   .field label{display:block; font-size:10.5px; letter-spacing:0.16em; text-transform:uppercase; color:var(--amber-dim); margin-bottom:7px;}
@@ -97,7 +95,6 @@
   .err{color:var(--danger); font-size:12px; margin-top:10px; text-align:center; min-height:14px;}
   .hint{margin-top:18px; font-size:11px; color:#7a6a55; line-height:1.6; text-align:center;}
 
-  /* ---------- CHAT SCREEN ---------- */
   #chat{
     display:none; width:100%; max-width:460px; height:100vh; max-height:100vh;
     flex-direction:column;
@@ -183,7 +180,7 @@
 
   <button class="go-btn" id="joinBtn" disabled>Kanalı Aç</button>
   <div class="err" id="errMsg"></div>
-  <div class="hint">Kod kimseye görünmez, sunucuda saklanmaz — sadece o kodu girenler aynı odaya düşer. Herkes internete bağlıysa çalışır, aynı Wi-Fi'de olmanız gerekmez.</div>
+  <div class="hint">Kod kimseye görünmez, sadece o kodu girenler aynı odaya düşer. Herkes internete bağlıysa çalışır, aynı Wi-Fi'de olmanız gerekmez.</div>
 </div>
 
 <div id="chat">
@@ -201,9 +198,41 @@
   </div>
 </div>
 
-<script>
-(function(){
-  const API = "/api/messages";
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getDatabase, ref, push, query, limitToLast, onChildAdded, off
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+  // ↓↓↓ BURAYI KENDİ FIREBASE CONFIG'İNLE DEĞİŞTİR ↓↓↓
+  <script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyBbUOR6OwCM_HnXnXBAZgsqE-YGkhMLnDs",
+    authDomain: "gizlidm-bee3d.firebaseapp.com",
+    projectId: "gizlidm-bee3d",
+    storageBucket: "gizlidm-bee3d.firebasestorage.app",
+    messagingSenderId: "475588873382",
+    appId: "1:475588873382:web:d622437d416e041c8db867",
+    measurementId: "G-CQ4Z6EMNHM"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  
+  // ↑↑↑ BURAYI KENDİ FIREBASE CONFIG'İNLE DEĞİŞTİR ↑↑↑
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
   const lock = document.getElementById('lock');
   const chat = document.getElementById('chat');
   const nameInput = document.getElementById('nameInput');
@@ -218,7 +247,7 @@
   const sendBtn = document.getElementById('sendBtn');
   const leaveBtn = document.getElementById('leaveBtn');
 
-  let room = null, myName = null, since = 0, pollTimer = null;
+  let room = null, myName = null, messagesRef = null;
 
   function currentCode(){ return digits.map(d => d.value || '—').join(''); }
   function updateReadout(){
@@ -248,7 +277,6 @@
     });
   });
 
-  // Try to restore last session
   try{
     const saved = JSON.parse(localStorage.getItem('frekans-session') || 'null');
     if(saved && saved.room && saved.name){
@@ -274,39 +302,31 @@
     chanFreq.textContent = code.slice(0,2) + '.' + code.slice(2);
     lock.style.display = 'none';
     chat.style.display = 'flex';
-    since = 0;
     log.innerHTML = '<div class="empty-log">Kanala bağlanılıyor…</div>';
-    fetchMessages(true);
-    pollTimer = setInterval(fetchMessages, 2000);
+
+    messagesRef = ref(db, `rooms/${room}/messages`);
+    const recentQuery = query(messagesRef, limitToLast(50));
+    onChildAdded(recentQuery, (snap) => {
+      renderMsg(snap.val());
+      log.scrollTop = log.scrollHeight;
+    }, (error) => {
+      errMsg.textContent = 'Bağlantı hatası — kuralları/config\'i kontrol et.';
+      console.error(error);
+    });
+
     textInput.focus();
   }
 
   leaveBtn.addEventListener('click', ()=>{
-    clearInterval(pollTimer);
+    if(messagesRef) off(messagesRef);
     localStorage.removeItem('frekans-session');
     chat.style.display = 'none';
     lock.style.display = 'block';
     log.innerHTML = '<div class="empty-log">Kanal sessiz. İlk mesajı sen gönder.</div>';
   });
 
-  async function fetchMessages(isFirst){
-    if(!room) return;
-    try{
-      const res = await fetch(`${API}?room=${room}&since=${since}`);
-      if(!res.ok) return;
-      const msgs = await res.json();
-      if(Array.isArray(msgs) && msgs.length){
-        if(isFirst) log.innerHTML = '';
-        msgs.forEach(renderMsg);
-        since = msgs[msgs.length-1].ts;
-        log.scrollTop = log.scrollHeight;
-      } else if(isFirst){
-        log.innerHTML = '<div class="empty-log">Kanal sessiz. İlk mesajı sen gönder.</div>';
-      }
-    }catch(e){ /* sessizce yeniden dener */ }
-  }
-
   function renderMsg(m){
+    if(!m) return;
     if(log.querySelector('.empty-log')) log.innerHTML = '';
     const div = document.createElement('div');
     const mine = m.name === myName;
@@ -325,21 +345,16 @@
     if(!text || !room) return;
     textInput.value = '';
     try{
-      await fetch(API, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({room, name: myName, text})
-      });
-      fetchMessages();
+      await push(messagesRef, { name: myName, text, ts: Date.now() });
     }catch(e){
-      errMsg.textContent = '';
+      errMsg.textContent = 'Mesaj gönderilemedi.';
+      console.error(e);
     }
   }
   sendBtn.addEventListener('click', sendMessage);
   textInput.addEventListener('keydown', e=>{ if(e.key==='Enter') sendMessage(); });
 
   updateReadout();
-})();
 </script>
 </body>
 </html>
