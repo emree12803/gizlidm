@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Frekans — Gizli Kanal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#171310;
+    --panel:#221c17;
+    --panel-2:#2b241d;
+    --line:#3c3226;
+    --amber:#e8a33d;
+    --amber-dim:#8a6a35;
+    --rust:#c15f3c;
+    --cream:#f1e7d6;
+    --cream-dim:#a8988038;
+    --phosphor:#8fe3c0;
+    --danger:#d1553f;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at 50% -10%, #2c2013 0%, transparent 55%),
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1px, transparent 1px, transparent 3px),
+      var(--ink);
+    color:var(--cream);
+    font-family:'IBM Plex Mono', monospace;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+  h1,h2,h3,.disp{font-family:'Oswald', sans-serif; letter-spacing:0.08em; text-transform:uppercase;}
+
+  /* ---------- LOCK SCREEN ---------- */
+  #lock{
+    width:100%; max-width:400px;
+    background:linear-gradient(180deg, var(--panel), var(--panel-2));
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:28px 24px 24px;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.03);
+    position:relative;
+  }
+  .brand{display:flex; align-items:center; gap:10px; margin-bottom:4px;}
+  .brand-dot{
+    width:9px; height:9px; border-radius:50%;
+    background:var(--amber);
+    box-shadow:0 0 8px 2px rgba(232,163,61,0.7);
+    animation:pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{opacity:0.4;} 50%{opacity:1;}}
+  .brand-label{font-size:11px; letter-spacing:0.22em; color:var(--amber-dim);}
+  h1{font-size:26px; margin:6px 0 2px; color:var(--cream);}
+  .sub{font-size:12px; color:#9a897166; color:#a89880; margin-bottom:22px; line-height:1.5;}
+
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:10.5px; letter-spacing:0.16em; text-transform:uppercase; color:var(--amber-dim); margin-bottom:7px;}
+  .name-input{
+    width:100%; padding:12px 14px; border-radius:10px;
+    border:1px solid var(--line); background:#1c1712;
+    color:var(--cream); font-family:'IBM Plex Mono', monospace; font-size:15px;
+    outline:none;
+  }
+  .name-input:focus{border-color:var(--amber-dim);}
+
+  .dial-row{display:flex; gap:7px;}
+  .dial-digit{
+    flex:1; aspect-ratio:1/1.15; min-width:0;
+    background:#1c1712; border:1px solid var(--line); border-radius:10px;
+    color:var(--phosphor); font-family:'IBM Plex Mono', monospace;
+    font-size:22px; text-align:center; outline:none;
+    caret-color:var(--amber);
+  }
+  .dial-digit:focus{border-color:var(--amber); box-shadow:0 0 0 3px rgba(232,163,61,0.12);}
+
+  .freq-readout{
+    margin-top:10px; text-align:center; font-size:12px; letter-spacing:0.14em;
+    color:var(--amber-dim); min-height:16px;
+  }
+
+  .go-btn{
+    width:100%; margin-top:18px; padding:14px; border:none; border-radius:10px;
+    background:linear-gradient(180deg, var(--amber), #c9862c);
+    color:#241a0c; font-family:'Oswald', sans-serif; font-weight:600;
+    letter-spacing:0.12em; text-transform:uppercase; font-size:14px;
+    cursor:pointer;
+  }
+  .go-btn:active{transform:translateY(1px);}
+  .go-btn:disabled{opacity:0.45; cursor:not-allowed;}
+  .err{color:var(--danger); font-size:12px; margin-top:10px; text-align:center; min-height:14px;}
+  .hint{margin-top:18px; font-size:11px; color:#7a6a55; line-height:1.6; text-align:center;}
+
+  /* ---------- CHAT SCREEN ---------- */
+  #chat{
+    display:none; width:100%; max-width:460px; height:100vh; max-height:100vh;
+    flex-direction:column;
+  }
+  .chat-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; background:var(--panel); border-bottom:1px solid var(--line);
+    border-radius:14px 14px 0 0;
+  }
+  .chan-label{font-size:10px; letter-spacing:0.18em; color:var(--amber-dim);}
+  .chan-freq{font-family:'Oswald',sans-serif; font-size:19px; color:var(--amber); letter-spacing:0.06em;}
+  .leave-btn{
+    background:none; border:1px solid var(--line); color:#a89880;
+    font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.08em;
+    padding:7px 11px; border-radius:8px; cursor:pointer; text-transform:uppercase;
+  }
+
+  .log{
+    flex:1; overflow-y:auto; padding:16px 14px;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 1px, transparent 1px, transparent 3px),
+      #1c1712;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .msg{max-width:78%; padding:9px 12px; border-radius:12px; font-size:14px; line-height:1.45; position:relative;}
+  .msg .who{display:block; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:3px; opacity:0.75;}
+  .msg .stamp{display:block; font-size:9.5px; opacity:0.45; margin-top:4px;}
+  .msg.mine{align-self:flex-end; background:linear-gradient(180deg, #3a2e1c, #2e2416); border:1px solid var(--amber-dim); color:var(--cream); border-bottom-right-radius:3px;}
+  .msg.mine .who{color:var(--amber);}
+  .msg.theirs{align-self:flex-start; background:var(--panel-2); border:1px solid var(--line); color:var(--phosphor); border-bottom-left-radius:3px;}
+  .msg.theirs .who{color:var(--rust);}
+  .empty-log{margin:auto; text-align:center; font-size:12px; color:#6b5c47; line-height:1.7;}
+
+  .composer{
+    display:flex; gap:8px; padding:12px; background:var(--panel);
+    border-top:1px solid var(--line); border-radius:0 0 14px 14px;
+  }
+  .composer input{
+    flex:1; padding:12px 14px; border-radius:22px; border:1px solid var(--line);
+    background:#1c1712; color:var(--cream); font-family:'IBM Plex Mono',monospace; font-size:14px; outline:none;
+  }
+  .composer input:focus{border-color:var(--amber-dim);}
+  .ptt{
+    width:46px; height:46px; border-radius:50%; border:none; flex-shrink:0;
+    background:linear-gradient(180deg, var(--amber), #c9862c); color:#241a0c;
+    font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .ptt:active{transform:scale(0.94);}
+
+  @media (max-width:480px){
+    body{padding:0;}
+    #lock{border-radius:0; min-height:100vh; display:flex; flex-direction:column; justify-content:center;}
+    #chat{max-width:100%; border-radius:0;}
+    .chat-head{border-radius:0;}
+    .composer{border-radius:0;}
+  }
+</style>
+</head>
+<body>
+
+<div id="lock">
+  <div class="brand"><span class="brand-dot"></span><span class="brand-label">Frekans · Özel Kanal</span></div>
+  <h1>Kanala Gir</h1>
+  <div class="sub">Sadece kodu bilenler bu kanalı duyar. 4 kişilik özel hat — kodu paylaştığın arkadaşların bağlanınca aynı sohbeti görürsünüz.</div>
+
+  <div class="field">
+    <label for="nameInput">Rumuzun</label>
+    <input id="nameInput" class="name-input" type="text" maxlength="24" placeholder="örn. Emre" autocomplete="off">
+  </div>
+
+  <div class="field">
+    <label>6 Haneli Kod</label>
+    <div class="dial-row" id="dialRow">
+      <input class="dial-digit" inputmode="numeric" maxlength="1" data-i="0">
+      <input class="dial-digit" inputmode="numeric" maxlength="1" data-i="1">
+      <input class="dial-digit" inputmode="numeric" maxlength="1" data-i="2">
+      <input class="dial-digit" inputmode="numeric" maxlength="1" data-i="3">
+      <input class="dial-digit" inputmode="numeric" maxlength="1" data-i="4">
+      <input class="dial-digit" inputmode="numeric" maxlength="1" data-i="5">
+    </div>
+    <div class="freq-readout" id="freqReadout">— — . — — — —</div>
+  </div>
+
+  <button class="go-btn" id="joinBtn" disabled>Kanalı Aç</button>
+  <div class="err" id="errMsg"></div>
+  <div class="hint">Kod kimseye görünmez, sunucuda saklanmaz — sadece o kodu girenler aynı odaya düşer. Herkes internete bağlıysa çalışır, aynı Wi-Fi'de olmanız gerekmez.</div>
+</div>
+
+<div id="chat">
+  <div class="chat-head">
+    <div>
+      <div class="chan-label">Aktif kanal</div>
+      <div class="chan-freq" id="chanFreq">—</div>
+    </div>
+    <button class="leave-btn" id="leaveBtn">Ayrıl</button>
+  </div>
+  <div class="log" id="log"><div class="empty-log">Kanal sessiz. İlk mesajı sen gönder.</div></div>
+  <div class="composer">
+    <input id="textInput" type="text" placeholder="Mesaj yaz…" autocomplete="off" maxlength="1000">
+    <button class="ptt" id="sendBtn">➤</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const API = "/api/messages";
+  const lock = document.getElementById('lock');
+  const chat = document.getElementById('chat');
+  const nameInput = document.getElementById('nameInput');
+  const dialRow = document.getElementById('dialRow');
+  const digits = Array.from(dialRow.querySelectorAll('.dial-digit'));
+  const freqReadout = document.getElementById('freqReadout');
+  const joinBtn = document.getElementById('joinBtn');
+  const errMsg = document.getElementById('errMsg');
+  const chanFreq = document.getElementById('chanFreq');
+  const log = document.getElementById('log');
+  const textInput = document.getElementById('textInput');
+  const sendBtn = document.getElementById('sendBtn');
+  const leaveBtn = document.getElementById('leaveBtn');
+
+  let room = null, myName = null, since = 0, pollTimer = null;
+
+  function currentCode(){ return digits.map(d => d.value || '—').join(''); }
+  function updateReadout(){
+    const raw = digits.map(d=>d.value);
+    freqReadout.textContent = raw.map((v,i)=> (v || '—') + (i===1?'.':'')).join(' ');
+    const full = raw.join('');
+    joinBtn.disabled = !/^[0-9]{6}$/.test(full);
+  }
+  digits.forEach((d,i)=>{
+    d.addEventListener('input', ()=>{
+      d.value = d.value.replace(/[^0-9]/g,'').slice(0,1);
+      if(d.value && digits[i+1]) digits[i+1].focus();
+      updateReadout();
+    });
+    d.addEventListener('keydown', (e)=>{
+      if(e.key === 'Backspace' && !d.value && digits[i-1]){ digits[i-1].focus(); }
+    });
+    d.addEventListener('paste', (e)=>{
+      const text = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g,'');
+      if(text.length){
+        e.preventDefault();
+        text.slice(0,6).split('').forEach((ch,idx)=>{ if(digits[idx]) digits[idx].value = ch; });
+        const last = Math.min(text.length,6)-1;
+        if(digits[last]) digits[last].focus();
+        updateReadout();
+      }
+    });
+  });
+
+  // Try to restore last session
+  try{
+    const saved = JSON.parse(localStorage.getItem('frekans-session') || 'null');
+    if(saved && saved.room && saved.name){
+      nameInput.value = saved.name;
+      saved.room.split('').forEach((ch,i)=>{ if(digits[i]) digits[i].value = ch; });
+      updateReadout();
+    }
+  }catch(e){}
+
+  joinBtn.addEventListener('click', joinRoom);
+  nameInput.addEventListener('keydown', e=>{ if(e.key==='Enter') digits[0].focus(); });
+
+  function joinRoom(){
+    errMsg.textContent = '';
+    const name = nameInput.value.trim();
+    const code = currentCode();
+    if(!name){ errMsg.textContent = 'Önce bir rumuz gir.'; nameInput.focus(); return; }
+    if(!/^[0-9]{6}$/.test(code)){ errMsg.textContent = 'Kod 6 haneli rakam olmalı.'; return; }
+
+    room = code; myName = name;
+    localStorage.setItem('frekans-session', JSON.stringify({room, name}));
+
+    chanFreq.textContent = code.slice(0,2) + '.' + code.slice(2);
+    lock.style.display = 'none';
+    chat.style.display = 'flex';
+    since = 0;
+    log.innerHTML = '<div class="empty-log">Kanala bağlanılıyor…</div>';
+    fetchMessages(true);
+    pollTimer = setInterval(fetchMessages, 2000);
+    textInput.focus();
+  }
+
+  leaveBtn.addEventListener('click', ()=>{
+    clearInterval(pollTimer);
+    localStorage.removeItem('frekans-session');
+    chat.style.display = 'none';
+    lock.style.display = 'block';
+    log.innerHTML = '<div class="empty-log">Kanal sessiz. İlk mesajı sen gönder.</div>';
+  });
+
+  async function fetchMessages(isFirst){
+    if(!room) return;
+    try{
+      const res = await fetch(`${API}?room=${room}&since=${since}`);
+      if(!res.ok) return;
+      const msgs = await res.json();
+      if(Array.isArray(msgs) && msgs.length){
+        if(isFirst) log.innerHTML = '';
+        msgs.forEach(renderMsg);
+        since = msgs[msgs.length-1].ts;
+        log.scrollTop = log.scrollHeight;
+      } else if(isFirst){
+        log.innerHTML = '<div class="empty-log">Kanal sessiz. İlk mesajı sen gönder.</div>';
+      }
+    }catch(e){ /* sessizce yeniden dener */ }
+  }
+
+  function renderMsg(m){
+    if(log.querySelector('.empty-log')) log.innerHTML = '';
+    const div = document.createElement('div');
+    const mine = m.name === myName;
+    div.className = 'msg ' + (mine ? 'mine' : 'theirs');
+    const time = new Date(m.ts).toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
+    div.innerHTML = `<span class="who">${escapeHtml(m.name)}</span>${escapeHtml(m.text)}<span class="stamp">${time}</span>`;
+    log.appendChild(div);
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  async function sendMessage(){
+    const text = textInput.value.trim();
+    if(!text || !room) return;
+    textInput.value = '';
+    try{
+      await fetch(API, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({room, name: myName, text})
+      });
+      fetchMessages();
+    }catch(e){
+      errMsg.textContent = '';
+    }
+  }
+  sendBtn.addEventListener('click', sendMessage);
+  textInput.addEventListener('keydown', e=>{ if(e.key==='Enter') sendMessage(); });
+
+  updateReadout();
+})();
+</script>
+</body>
+</html>
